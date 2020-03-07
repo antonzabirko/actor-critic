@@ -53,4 +53,14 @@ class ActorCritic(object):
         state = state[np.newaxis, :]
         state_ = state_[np.newaxis, :]
 
-        cr
+        critic_value_ = self.critic.predict(state_)
+        critic_value = self.critic.predict(state)
+
+        target = reward + self.gamma*critic_value_*(1-int(done))
+        delta = target - critic_value
+
+        actions = np.zeros([1, self.n_actions])
+        actions[np.arange(1), action] = 1.0
+
+        self.actor.fit([state, delta], actions, verbose=0)
+        self.critic.fit(state, target, verbose=0)
