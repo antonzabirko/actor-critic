@@ -6,8 +6,8 @@ from keras.models import Model
 from keras.optimizers import Adam
 
 class ActorCritic(object):
-    def __init__(self, alpha, beta, gamma=0.99, n_actions=4, layer1_size=1024,
-                 layer2_size=512, input_dims=8):
+    def __init__(self, alpha, beta, gamma=0.99, n_actions=2, layer1_size=1024,
+                 layer2_size=512, input_dims=4):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -26,19 +26,13 @@ class ActorCritic(object):
         probs = Dense(self.n_actions, activation='softmax')(dense2)
         values = Dense(1, activation='linear')(dense2)
 
-        def loss(y_true, y_pred):
-            out = K.clip(y_pred, 1e-8, 1-1e-8)
-            log_lik = y_true*K.log(out)
+        actor = Model(inputs=[input, delta], outputs=[probs])
+        actor.compile(optimizer=Adam(lr=self.alpha), loss='mean_squared_error')
 
-            return K.sum(-log_lik*delta)
-
-        actor = Model(input=[input, delta], output=[probs])
-        actor.compile(optimizer=Adam(lr=self.alpha), loss=loss)
-
-        critic = Model(input=[input], output=[values])
+        critic = Model(inputs=[input], outputs=[values])
         critic.compile(optimizer=Adam(lr=self.beta), loss='mean_squared_error')
 
-        policy = Model(input=[input], output=[probs])
+        policy = Model(inputs=[input], outputs=[probs])
 
         return actor, critic, policy
 
@@ -62,5 +56,7 @@ class ActorCritic(object):
         actions = np.zeros([1, self.n_actions])
         actions[np.arange(1), action] = 1.0
 
-        self.actor.fit([state, delta], actions, verbose=0)
+        actor_history = self.actor.fit([state, delta], actions, verbose=0)
         self.critic.fit(state, target, verbose=0)
+
+        return actor_history
